@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEKETI GEMU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Unbounded:wght@600;800;900&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  /* =====================================================
+     TEMA "PHOTOCARD FOIL"
+     Kertas krem + tinta indigo + kartu foil holografik.
+     ===================================================== */
+  :root{
+    --paper:#f4efe5;
+    --face:#fffdf8;
+    --ink:#17142b;
+    --muted:#6a6482;
+    --line:rgba(23,20,43,.14);
+    --accent:#ff3b4e;      /* warna penlight (bisa diganti) */
+    --accent2:#ff8a96;
+    --on-accent:#fff;
+    --foil:conic-gradient(from var(--ang,200deg),#ff9ac8,#ffd27a,#9ff0c9,#8fb8ff,#c9a6ff,#ff9ac8);
+    --display:'Unbounded','Noto Sans JP','Hiragino Sans','Yu Gothic','Arial Black',system-ui,sans-serif;
+    --body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--body);background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden;
+    background-image:radial-gradient(rgba(23,20,43,.09) 1px,transparent 1.4px);background-size:22px 22px}
+  button{font-family:inherit}
+  main,header,footer,nav{position:relative;z-index:1}
+
+  /* Bola warna lembut di latar */
+  .blob{position:fixed;z-index:0;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none;animation:drift 18s ease-in-out infinite alternate}
+  .blob.a{width:46vw;height:46vw;left:-12vw;top:-10vw;background:#ffc2dc}
+  .blob.b{width:40vw;height:40vw;right:-10vw;top:22vh;background:#b9ecd8;animation-delay:-6s}
+  .blob.c{width:36vw;height:36vw;left:30vw;bottom:-16vw;background:#cfc5ff;animation-delay:-11s}
+  @keyframes drift{to{transform:translate(5vw,4vh) scale(1.12)}}
+
+  /* NAV */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:12px 5vw;position:sticky;top:0;z-index:5;
+    background:rgba(244,239,229,.78);backdrop-filter:blur(12px);border-bottom:1.5px solid var(--line)}
+  .logo{font-family:var(--display);font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:8px}
+  .logo i{width:26px;height:26px;border-radius:8px;background:var(--foil);display:inline-block;transform:rotate(-8deg);
+    box-shadow:0 0 0 2px var(--ink)}
+  .logo span{color:var(--accent)}
+  .logo em{font-style:normal}
+  .burger{width:44px;height:44px;border-radius:14px;background:var(--face);border:2px solid var(--ink);cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;transition:.2s;box-shadow:3px 3px 0 var(--ink)}
+  .burger i{display:block;width:18px;height:2.5px;background:var(--ink);border-radius:2px}
+  .burger:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--ink)}
+  .burger:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+
+  /* PANEL PENGATURAN */
+  .overlay{position:fixed;inset:0;background:rgba(23,20,43,.45);backdrop-filter:blur(3px);z-index:25;opacity:0;pointer-events:none;transition:.3s}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(340px,88vw);background:var(--face);color:var(--ink);z-index:30;
+    padding:24px;transform:translateX(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1);border-left:2px solid var(--ink)}
+  .drawer.open{transform:none}
+  .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+  .dh b{font-family:var(--display);font-size:1rem}
+  .dh button{background:transparent;border:none;color:var(--ink);font-size:1.3rem;cursor:pointer}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-bottom:1.5px dashed var(--line)}
+  .row b{display:block;font-size:.95rem}
+  .row small{color:var(--muted);font-size:.76rem}
+  .row.col{flex-direction:column;align-items:flex-start}
+  #pens{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  #pens button{width:36px;height:36px;border-radius:50%;border:3px solid var(--face);cursor:pointer;transition:.2s;
+    outline:2px solid var(--line)}
+  #pens button:hover{transform:scale(1.15)}
+  #pens button.on{outline:3px solid var(--ink);transform:scale(1.1)}
+  .sw{position:relative;width:56px;height:32px;flex:none}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw span{position:absolute;inset:0;border-radius:99px;background:#d9d3e6;cursor:pointer;transition:.3s;border:2px solid var(--ink)}
+  .sw span::before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:var(--ink);transition:.3s}
+  .sw input:checked+span{background:var(--accent)}
+  .sw input:checked+span::before{transform:translateX(24px);background:#fff;box-shadow:0 0 0 2px var(--ink)}
+  .sw input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+
+  /* HERO */
+  header{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;max-width:1200px;margin:0 auto;padding:7vh 5vw 3vh}
+  .sticker{display:inline-block;font-weight:700;font-size:.72rem;letter-spacing:2.5px;padding:8px 16px;border-radius:99px;
+    background:var(--accent);color:var(--on-accent);transform:rotate(-3deg);box-shadow:3px 3px 0 var(--ink);border:2px solid var(--ink);margin-bottom:22px}
+  h1{font-family:var(--display);font-weight:900;font-size:clamp(2rem,8.5vw,4.2rem);line-height:.92;letter-spacing:-.03em}
+  h1 .l2{display:block;background:var(--foil);-webkit-background-clip:text;background-clip:text;color:transparent;
+    -webkit-text-stroke:2px var(--ink);filter:saturate(1.4);animation:spinfoil 7s linear infinite}
+  @keyframes spinfoil{to{filter:saturate(1.4) hue-rotate(360deg)}}
+  .sub{margin-top:22px;max-width:480px;color:var(--muted);font-size:clamp(.95rem,2.4vw,1.08rem);line-height:1.6}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+  #langs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  #langs button{border:2px solid var(--ink);background:var(--face);color:var(--ink);border-radius:99px;padding:8px 14px;
+    font-weight:700;font-size:.8rem;cursor:pointer;transition:.15s}
+  #langs button.on{background:var(--accent);color:var(--on-accent)}
+  .btn{font-weight:700;border:2px solid var(--ink);cursor:pointer;padding:14px 26px;border-radius:99px;font-size:.95rem;
+    transition:.15s;text-decoration:none;display:inline-block;color:var(--ink);background:var(--face);box-shadow:4px 4px 0 var(--ink)}
+  .btn.p{background:var(--accent);color:var(--on-accent)}
+  .btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+  .btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .stats{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+  .stat{border:2px dashed var(--ink);border-radius:16px;padding:10px 18px;background:rgba(255,253,248,.7)}
+  .stat b{display:block;font-family:var(--display);font-size:1.4rem}
+  .stat span{font-size:.66rem;color:var(--muted);letter-spacing:2px;font-weight:700}
+
+  /* Tumpukan kartu hiasan */
+  .deck{position:relative;height:360px;max-width:360px;width:100%;margin:0 auto}
+  .mini{position:absolute;left:50%;top:50%;width:190px;height:270px;margin:-135px 0 0 -95px;border-radius:22px;padding:4px;
+    background:var(--foil);box-shadow:5px 6px 0 var(--ink),0 0 0 2px var(--ink);animation:bobcard 5s ease-in-out infinite}
+  .mini div{height:100%;border-radius:18px;background:var(--face);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  .mini div.has-img{
+    background:linear-gradient(to top,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 30%,rgba(0,0,0,.35) 58%,rgba(0,0,0,0) 80%),
+      var(--img) center/cover no-repeat,var(--face);
+    color:#fff;justify-content:flex-end;padding-bottom:22px}
+  .mini small{font-family:var(--display);font-size:.55rem;letter-spacing:1px;font-weight:800}
+  .mini:nth-child(1){--r:-14deg;--x:-70px;animation-delay:-1s}
+  .mini:nth-child(2){--r:-2deg;--x:0px;animation-delay:-2.4s;z-index:2}
+  .mini:nth-child(3){--r:12deg;--x:72px;animation-delay:-3.6s}
+  @keyframes bobcard{0%,100%{transform:translateX(var(--x)) rotate(var(--r)) translateY(0)}50%{transform:translateX(var(--x)) rotate(var(--r)) translateY(-14px)}}
+
+  /* PITA BERJALAN */
+  .marquee{overflow:hidden;white-space:nowrap;background:var(--ink);color:var(--paper);margin:30px 0 20px;transform:rotate(-1.2deg);padding:11px 0}
+  .marquee div{display:inline-block;animation:slide 28s linear infinite;font-family:var(--display);font-weight:600;font-size:.8rem;letter-spacing:2px}
+  .marquee b{color:var(--accent2);margin:0 10px}
+  @keyframes slide{to{transform:translateX(-50%)}}
+
+  /* GAME */
+  section{padding:5vh 5vw 9vh;max-width:1200px;margin:0 auto}
+  .sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:34px}
+  .sec-title{font-family:var(--display);font-weight:900;font-size:clamp(1.6rem,5vw,2.6rem);letter-spacing:-.02em;line-height:1}
+  .sec-title span{color:var(--accent)}
+  .sec-sub{color:var(--muted);font-size:.92rem;margin-top:10px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px 24px}
+  .card{
+    --rot:0deg;--hue:0deg;
+    position:relative;border-radius:28px;padding:5px;cursor:pointer;outline:none;
+    transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) rotate(var(--rot)) translateY(var(--lift,0px));
+    transition:transform .25s ease-out,box-shadow .25s;
+    box-shadow:6px 7px 0 var(--ink),0 0 0 2px var(--ink);
+    opacity:0;animation:deal .7s cubic-bezier(.2,.9,.3,1.2) forwards;animation-delay:calc(var(--i) * .1s)
+  }
+  @keyframes deal{from{opacity:0;transform:translateY(60px) rotate(8deg) scale(.9)}to{opacity:1}}
+  .card::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--foil);
+    filter:hue-rotate(var(--hue));animation:holo 9s linear infinite}
+  @keyframes holo{to{filter:hue-rotate(calc(var(--hue) + 360deg))}}
+  .card:hover,.card:focus-visible{--lift:-10px;box-shadow:10px 14px 0 var(--ink),0 0 0 2px var(--ink)}
+  .card:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
+  .face{position:relative;display:flex;flex-direction:column;min-height:400px;padding:20px;border-radius:23px;background:var(--face)}
+  .shine{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;
+    background:radial-gradient(circle at var(--mx,50%) var(--my,30%),rgba(255,255,255,.95),rgba(255,255,255,0) 55%);mix-blend-mode:soft-light}
+  .card:hover .shine{opacity:1}
+  .top{display:flex;justify-content:space-between;align-items:center;font-size:.68rem;font-weight:700;letter-spacing:2px;color:var(--muted)}
+  .tag{background:var(--ink);color:var(--paper);padding:4px 11px;border-radius:99px;letter-spacing:2px}
+  .art{margin:18px auto 14px;width:132px;height:132px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--ink);
+    background:radial-gradient(circle at 30% 25%,#fff,rgba(255,255,255,0) 45%),var(--foil);filter:saturate(.9)}
+  .art span{font-size:3.8rem;filter:drop-shadow(0 4px 0 rgba(23,20,43,.25));transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+  .card:hover .art span{transform:scale(1.18) rotate(-8deg)}
+  .face h3{font-family:var(--display);font-weight:800;font-size:1.02rem;line-height:1.25;text-align:center;letter-spacing:-.01em}
+  .desc{color:var(--muted);font-size:.84rem;line-height:1.5;text-align:center;margin:10px 0 18px}
+  .foot{margin-top:auto;padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .plays{font-size:.7rem;color:var(--muted);font-weight:700}
+  .go{background:var(--accent);color:var(--on-accent);border:2px solid var(--ink);font-weight:700;font-size:.82rem;padding:9px 18px;
+    border-radius:99px;box-shadow:2px 2px 0 var(--ink);transition:.15s;white-space:nowrap}
+  .card:hover .go{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  /* Kartu dengan gambar game: gambar jadi latar, gradasi hitam di bawah tempat teks */
+  .face.has-img{
+    background:linear-gradient(to top,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 30%,rgba(0,0,0,.35) 58%,rgba(0,0,0,0) 80%),
+      var(--img) center/cover no-repeat,var(--face);
+    color:#fff}
+  .face.has-img h3{margin-top:auto;color:#fff}
+  .face.has-img .desc{color:rgba(255,255,255,.82)}
+  .face.has-img .top{color:rgba(255,255,255,.85)}
+  .face.has-img .foot{margin-top:0}
+  .face.has-img .plays{color:rgba(255,255,255,.8)}
+  body.mono .face.has-img{filter:grayscale(1)}
+  .card.flash{animation:flash .6s ease 2}
+  @keyframes flash{50%{--lift:-18px;box-shadow:0 0 0 6px var(--accent),6px 7px 0 var(--ink)}}
+
+  /* Tata letak berselang-seling di layar lebar */
+  @media (min-width:1000px){
+    .grid{grid-template-columns:repeat(4,1fr)}
+    .card:nth-child(odd){--rot:-1.4deg}
+    .card:nth-child(even){--rot:1.4deg;margin-top:38px}
+    .card:hover{--rot:0deg}
+  }
+  /* HP: satu kolom, kartu jadi baris yang ringkas */
+  @media (max-width:560px){
+    header{grid-template-columns:1fr;padding-top:5vh}
+    .deck{display:none}
+    .grid{grid-template-columns:1fr;gap:20px}
+    .face{min-height:0;display:grid;grid-template-columns:1fr;grid-template-areas:"top" "title" "desc" "foot";
+      gap:6px 16px;padding:16px;align-items:start}
+    .face.has-img{min-height:240px;grid-template-rows:auto 1fr auto auto}
+    .face.has-img h3{align-self:end}
+    .top{grid-area:top}
+    .face h3{grid-area:title;text-align:left;font-size:.92rem}
+    .desc{grid-area:desc;text-align:left;margin:0;font-size:.8rem}
+    .foot{grid-area:foot;margin-top:10px}
+  }
+  @media (max-width:900px){ header{grid-template-columns:1fr} .deck{display:none} }
+
+  footer{text-align:center;padding:34px 5vw 56px;color:var(--muted);font-size:.78rem;border-top:1.5px dashed var(--line);line-height:1.7}
+  footer b{color:var(--ink)}
+
+  #toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,130px);background:var(--ink);color:var(--paper);
+    padding:13px 22px;border-radius:16px;font-weight:700;font-size:.85rem;z-index:40;transition:.4s;max-width:90vw;text-align:center}
+  #toast.show{transform:translate(-50%,0)}
+
+  /* =====================================================
+     MODE SIMPEL: hitam putih
+     ===================================================== */
+  body.mono{--paper:#fff;--face:#fff;--ink:#000;--muted:#555;--line:#000;--accent:#000;--accent2:#000;--on-accent:#fff;
+    background-image:none}
+  body.mono .blob,body.mono .shine,body.mono .deck{display:none}
+  body.mono nav{background:rgba(255,255,255,.95)}
+  body.mono .logo i{background:#000}
+  body.mono h1 .l2{background:none;color:#000;-webkit-text-stroke:0;animation:none;filter:none}
+  body.mono .card::before{background:#000;animation:none;filter:none}
+  body.mono .art{background:#fff;filter:none}
+  body.mono .art span{filter:grayscale(1)}
+  body.mono .marquee b{color:#fff}
+  body.mono header{grid-template-columns:1fr}
+  body.mono #penRow{opacity:.35;pointer-events:none}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+    .card{opacity:1}
+  }
+</style>
+</head>
+<body>
+
+<div class="blob a"></div><div class="blob b"></div><div class="blob c"></div>
+
+<nav>
+  <div class="logo"><em id="lgA">JEKETI48</em><span id="lgB">ゲームプレイ</span></div>
+  <button class="burger" id="burger" aria-label="Buka menu pengaturan"><i></i><i></i><i></i></button>
+</nav>
+
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer" aria-label="Pengaturan tampilan">
+  <div class="dh"><b>PENGATURAN</b><button id="closeDr" aria-label="Tutup">✕</button></div>
+  <div class="row">
+    <div><b>Mode Simpel</b><small>Hitam putih sederhana</small></div>
+    <label class="sw"><input type="checkbox" id="modeSw"><span></span></label>
+  </div>
+  <div class="row col" id="penRow">
+    <div><b>Warna Penlight</b><small>Pilih warna tombol dan aksen</small></div>
+    <div id="pens"></div>
+  </div>
+  <div class="row col">
+    <div><b>Bahasa Judul</b><small>Pilih tulisan judul game</small></div>
+    <div id="langs"></div>
+  </div>
+</aside>
+
+<header>
+  <div>
+    <div class="sticker">★ FANS FOR FANS ★</div>
+    <h1 id="title"><span class="l1" id="tL1">JEKETI48</span><span class="l2" id="tL2">ゲームプレイ</span></h1>
+    <p class="sub">Koleksi mini game bertema JKT48. Pilih kartu, klik, langsung main. Tanpa ribet.</p>
+    <div class="cta">
+      <a href="#games" class="btn p">MAIN SEKARANG</a>
+      <button class="btn" id="randBtn">🎲 ACAK GAME</button>
+    </div>
+  </div>
+  <div class="deck" id="deck" aria-hidden="true"></div>
+</header>
+
+<div class="marquee"><div id="mq"></div></div>
+
+<main>
+  <section id="games">
+    <div class="sec-head">
+      <div>
+        <h2 class="sec-title">KOLEKSI <span>GAME</span></h2>
+        <p class="sec-sub">Klik kartunya, game langsung terbuka di tab baru.</p>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<footer>
+  Dibuat oleh fans, untuk fans. <b>Bukan website resmi JKT48.</b>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* =====================================================
+   ✏️ TEMPAT MENARUH LINK GAME
+   Ganti isi  url:"" dengan link game kamu.
+   Contoh:  url:"https://username.github.io/line-up-rush/"
+   ===================================================== */
+const GAMES = [
+  {
+    title:"JKT48 LINE UP RUSH",
+    desc:"Atur barisan member secepat kilat sebelum waktu habis. Reflek dan ketelitian diuji!",
+    icon:"🏃‍♀️", tag:"ARCADE",
+    img:"", // <-- ISI hanya jika ingin memaksa file tertentu (kosong = otomatis dari gambar_latar)
+    url:"https://jkt48-lineup-rush-bydydrmwn.netlify.app/" // <-- TARUH LINK JKT48 LINE UP RUSH DI SINI
+  },
+  {
+    title:"JKT48 TRANSACTION SIMULATOR",
+    desc:"Simulasi transaksi tiket dan merchandise. Kelola uang jajan oshi-mu dengan bijak.",
+    icon:"💳", tag:"SIMULATOR",
+    img:"", // <-- TARUH LINK/PATH GAMBAR TRANSACTION SIMULATOR DI SINI
+    url:"https://jkt48transactionsim-bydynikoo.netlify.app/" // <-- TARUH LINK JKT48 TRANSACTION SIMULATOR DI SINI
+  },
+  {
+    title:"JKT48 LUCKY",
+    desc:"Coba peruntunganmu! Siapa member yang beruntung hari ini untukmu?",
+    icon:"🍀", tag:"LUCKY",
+    img:"", // <-- TARUH LINK/PATH GAMBAR LUCKY DI SINI
+    url:"https://jkt48luckygame.netlify.app/" // <-- TARUH LINK JKT48 LUCKY DI SINI
+  },
+  {
+    title:"JEKETIMATCH48",
+    desc:"Cocokkan kartu dan pasangan member. Asah ingatanmu, kejar skor tertinggi!",
+    icon:"🃏", tag:"PUZZLE",
+    img:"", // <-- TARUH LINK/PATH GAMBAR JEKETIMATCH48 DI SINI
+    url:"https://jeketimatch48.vercel.app/" // <-- TARUH LINK JEKETIMATCH48 DI SINI
+  }
+];
+/* ===================================================== */
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
+};
+
+/* Pita berjalan */
+const mqText = "JEKETI GEMU<b>★</b>" + GAMES.map(g=>g.title+"<b>★</b>").join("");
+$('#mq').innerHTML = mqText.repeat(8);
+
+/* Tumpukan kartu hiasan di hero */
+$('#deck').innerHTML = GAMES.slice(0,3).map(g=>
+  `<div class="mini"><div${g.img?` class="has-img" style="--img:url('${g.img}')"`:''}><small>${g.tag}</small></div></div>`).join('');
+
+/* Toast */
+let tt;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(tt); tt = setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+/* Statistik (disimpan di browser) */
+let plays = store.get('jg_plays',{});
+
+/* Buka game */
+function openGame(g){
+  if(!g.url){ toast(`Link ${g.title} belum diisi di kode (GAMES → url).`); return; }
+  plays[g.title] = (plays[g.title]||0)+1; store.set('jg_plays',plays);
+  renderPlays();
+  window.open(g.url,'_blank','noopener');
+}
+
+/* Render kartu foil */
+const grid = $('#grid');
+const cards = [];
+GAMES.forEach((g,i)=>{
+  const c = document.createElement('article');
+  c.className = 'card'; c.tabIndex = 0; c.setAttribute('role','link');
+  c.setAttribute('aria-label','Main '+g.title);
+  c.style.setProperty('--i',i);
+  c.style.setProperty('--hue',(i*70)+'deg');
+  c.innerHTML = `
+    <div class="face${g.img?' has-img':''}"${g.img?` style="--img:url('${g.img}')"`:''}>
+      <div class="top"><span>No.0${i+1}</span><span class="tag">${g.tag}</span></div>
+      <h3>${g.title}</h3>
+      <p class="desc">${g.desc}</p>
+      <div class="foot"><span class="plays" data-p="${g.title}"></span><span class="go">MAIN ▶</span></div>
+      <div class="shine"></div>
+    </div>`;
+  c.addEventListener('click',()=>openGame(g));
+  c.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openGame(g); } });
+  /* Efek kartu miring + kilau foil mengikuti kursor (hanya mouse) */
+  c.addEventListener('pointermove',e=>{
+    if(e.pointerType!=='mouse') return;
+    const r=c.getBoundingClientRect(), x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+    c.style.setProperty('--rx',((.5-y)*9)+'deg');
+    c.style.setProperty('--ry',((x-.5)*11)+'deg');
+    c.style.setProperty('--mx',(x*100)+'%'); c.style.setProperty('--my',(y*100)+'%');
+    c.style.setProperty('--ang',Math.round(x*360)+'deg');
+  });
+  c.addEventListener('pointerleave',()=>{ c.style.setProperty('--rx','0deg'); c.style.setProperty('--ry','0deg'); });
+  grid.appendChild(c); cards.push(c);
+});
+function renderPlays(){
+  document.querySelectorAll('.plays').forEach(el=>{
+    el.textContent = `Dibuka ${plays[el.dataset.p]||0}x`;
+  });
+}
+renderPlays();
+
+/* Gambar otomatis dari folder gambar_latar (jpg/jpeg).
+   Nama file yang dicoba: nama game (line-up-rush.jpg, jkt48-line-up-rush.jpg,
+   line_up_rush.jpg, lineuprush.jpg) atau nomor urut (1.jpg / 01.jpg).
+   Kalau tidak ketemu, kartu tetap putih polos. Isi img:"..." di GAMES untuk memaksa file tertentu. */
+const IMG_DIR = 'gambar_latar/';
+function imgCandidates(g,i){
+  const base = g.title.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const short = base.replace(/^jkt48 ?/,'');
+  const names = new Set();
+  [base,short].filter(Boolean).forEach(s=>{
+    names.add(s.replace(/ /g,'-')); names.add(s.replace(/ /g,'_')); names.add(s.replace(/ /g,''));
+  });
+  names.add(String(i+1)); names.add('0'+(i+1));
+  const out = [];
+  names.forEach(n=>['jpg','jpeg'].forEach(e=>out.push(IMG_DIR+n+'.'+e)));
+  return out;
+}
+function findImg(list,done){
+  let k = 0;
+  (function next(){
+    if(k>=list.length) return;
+    const im = new Image();
+    im.onload = ()=>done(list[k]);
+    im.onerror = ()=>{ k++; next(); };
+    im.src = list[k];
+  })();
+}
+function setImg(i,url){
+  const apply = el=>{ if(!el) return; el.classList.add('has-img'); el.style.setProperty('--img',`url('${url}')`); };
+  apply(cards[i].querySelector('.face'));
+  apply(document.querySelectorAll('#deck .mini > div')[i]);
+}
+GAMES.forEach((g,i)=>{
+  if(g.img) setImg(i,g.img);
+  else findImg(imgCandidates(g,i),u=>setImg(i,u));
+});
+
+/* Acak game */
+$('#randBtn').addEventListener('click',()=>{
+  const k = Math.floor(Math.random()*GAMES.length), g = GAMES[k];
+  toast(`🎲 Terpilih: ${g.title}`);
+  document.getElementById('games').scrollIntoView({behavior:'smooth'});
+  cards[k].classList.add('flash');
+  setTimeout(()=>{ cards[k].classList.remove('flash'); openGame(g); },1300);
+});
+
+/* Warna penlight (aksen tombol) */
+const PENS = [
+  {n:'Merah', a:'#ff3b4e', b:'#ff8a96', t:'#ffffff'},
+  {n:'Biru',  a:'#2f6bff', b:'#8fb0ff', t:'#ffffff'},
+  {n:'Hijau', a:'#10b26c', b:'#7fe0b6', t:'#ffffff'},
+  {n:'Kuning',a:'#ffb703', b:'#ffd96b', t:'#17142b'},
+  {n:'Ungu',  a:'#8b5cf6', b:'#c1a8ff', t:'#ffffff'},
+  {n:'Pink',  a:'#ff4fa3', b:'#ffa6d1', t:'#ffffff'}
+];
+let curPen = 0, mono = store.get('jg_mode','pen') === 'mono';
+function setPen(i){
+  const p = PENS[i], r = document.documentElement.style;
+  r.setProperty('--accent',p.a); r.setProperty('--accent2',p.b); r.setProperty('--on-accent',p.t);
+  document.querySelectorAll('#pens button').forEach((b,k)=>b.classList.toggle('on',k===i));
+  store.set('jg_pen',i); curPen = i;
+}
+/* Mode: penlight berwarna <-> hitam putih simpel */
+function setMode(m){
+  mono = m === 'mono';
+  document.body.classList.toggle('mono',mono);
+  $('#modeSw').checked = mono;
+  store.set('jg_mode',m);
+}
+$('#modeSw').addEventListener('change',e=>{
+  setMode(e.target.checked ? 'mono' : 'pen');
+  toast(mono ? 'Mode Hitam Putih Simpel' : 'Mode Berwarna ✨');
+});
+PENS.forEach((p,i)=>{
+  const b = document.createElement('button');
+  b.style.background = p.a; b.title = p.n; b.setAttribute('aria-label','Penlight '+p.n);
+  b.addEventListener('click',()=>{ setPen(i); toast(`Penlight ${p.n} ✨`); });
+  $('#pens').appendChild(b);
+});
+setPen(Math.min(store.get('jg_pen',0),PENS.length-1));
+setMode(mono ? 'mono' : 'pen');
+
+/* Judul game: Jepang / Latin / Indonesia */
+const TITLES = [
+  {k:'jp',    label:'日本語',           a:'JEKETI48', b:'ゲームプレイ', lang:'ja'},
+  {k:'latin', label:'Latin',            a:'JKT48',    b:'Gēmu Purei',  lang:'ja-Latn'},
+  {k:'id',    label:'English',          a:'JKT48',    b:'Game Play',   lang:'en'}
+];
+function setTitle(k){
+  const i = Math.max(0,TITLES.findIndex(x=>x.k===k)), x = TITLES[i];
+  $('#tL1').textContent = $('#lgA').textContent = x.a;
+  $('#tL2').textContent = $('#lgB').textContent = x.b;
+  $('#title').lang = x.lang;
+  document.querySelectorAll('#langs button').forEach((b,n)=>b.classList.toggle('on',n===i));
+  store.set('jg_title',x.k);
+}
+TITLES.forEach(x=>{
+  const b = document.createElement('button');
+  b.textContent = x.label;
+  b.addEventListener('click',()=>{ setTitle(x.k); toast(x.a+' '+x.b); });
+  $('#langs').appendChild(b);
+});
+setTitle(store.get('jg_title','jp'));
+
+/* Buka / tutup panel pengaturan (tombol garis 3) */
+function drawer(open){
+  $('#drawer').classList.toggle('open',open);
+  $('#overlay').classList.toggle('open',open);
+}
+$('#burger').addEventListener('click',()=>drawer(!$('#drawer').classList.contains('open')));
+$('#closeDr').addEventListener('click',()=>drawer(false));
+$('#overlay').addEventListener('click',()=>drawer(false));
+addEventListener('keydown',e=>{ if(e.key==='Escape') drawer(false); });
+</script>
+</body>
+</html>
